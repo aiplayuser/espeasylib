@@ -1,0 +1,49 @@
+
+  <!DOCTYPE html><html><head><meta charset=UTF-8>    
+    <style>#logs{border:solid;overflow-y:auto;height:300px;width:233px;}</style>
+    <meta name=viewport content="width=device-width,initial-scale=1.1">
+  </head><body><p>
+
+    <select id="srvs" oninput="mqtts.value=this.value">
+      <option>broker.hivemq.com:8000</option>
+      <option>broker.emqx.io:8083</option></select> select<p>
+
+    <input id="mqtts"> mqtt<p><input id="topic"> topic<p>
+      
+    <button onclick="sends(public, 'search...')">add添加</button>
+    <button onclick="sends('', 'open')">打开水阀</button>
+    <button onclick="sends('', 'stop')">关闭水阀</button><p></p>
+    <button onclick="sends('', 'get')">大门门锁</button>
+    <button onclick="sends('', 'dht22')">dht22</button>
+    <button onclick="sends('', 'search...')">search...</button><p></p>
+    <input id="cmds">
+    <button onclick="sends('', cmdel.value)">发送send</button><p>
+    <div id=logs></div>
+    
+  </body>
+
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+  <script> var mqttclt; ls = localStorage; public = "administrator";
+    cltid = Array.from({length:15},()=>Math.floor(Math.random()*10)).join('');
+    el = (id) => document.getElementById(id);
+    [topel, mqtel, cmdel, logel] = ['topic','mqtts','cmds','logs'].map(el);
+    topel.value = ls.topic || ''; mqtel.value = ls.mqtts || '';
+
+    print=(log)=>{  
+      logel.innerHTML += `${log}<br>`; logel.scrollTop = logel.scrollHeight; }
+    
+    sends=(pub,msg)=>{ 
+      var topic=topel.value, mqtts=mqtel.value; if(pub=='')pub=topic;
+      if(ls.topic != topic || ls.mqtts != mqtts || !mqttclt?.connected){
+        print(`cltid: ${cltid}`); ls.topic = topic; ls.mqtts = mqtts;
+        mqttclt = mqtt.connect('ws://'+mqtts+'/mqtt', {clientID:cltid,keepalive:60 } );
+        mqttclt.on( 'connect', () => print('connected') );
+        mqttclt.on( 'message', (t, m) => { if(t!=public)print(m); else{
+          ip = m.toString().match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+          if (ip) print("<a href=http://"+ip[0]+ " target=_blank>"+ip[0]+"</a>"); } } );
+        mqttclt.stream.on( 'error', err => print(err) );      
+      }
+      mqttclt.subscribe(pub, err=>err?print(err):mqttclt.publish(pub,msg) );    
+    }
+
+  </script></html>
